@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="ko" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="referrer" content="no-referrer">
+  <title>송추계곡 루트 및 맛집 가이드 | Pebble Splash Stream Edition</title>
+
+  <!-- Pretendard Font CDN & Google Fonts -->
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700;800&family=Outfit:wght@600;800;900&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- FontAwesome 6 Icons CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- Anime.js Animation Engine CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+
+  <!-- Leaflet Map CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Pretendard', 'Space Grotesk', '-apple-system', 'sans-serif'],
+            display: ['Outfit', 'Space Grotesk', 'Pretendard', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Body Background dynamically interpolated by JS from #06181D -> #FFFFFF */
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: #06181D;
+      font-family: 'Pretendard', 'Space Grotesk', -apple-system, sans-serif;
+      letter-spacing: -0.02em;
+      overflow-x: hidden;
+    }
+
+    /* Fixed Canvas Spanning Full Screen sitting directly over background */
+    #full-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* Section 0 100vh Full Viewport */
+    .section-hero-0 {
+      height: 100vh;
+      min-height: 100vh;
+      max-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      z-index: 10;
+      background: transparent !important;
+      color: #F0FDF4;
+      box-sizing: border-box;
+      will-change: opacity, transform;
+    }
+
+    /* Section 1 and Below: Semi-Transparent Light Canvas so Canvas Pebbles & Splash Ripples are 100% VISIBLE! */
+    .section-light {
+      background: rgba(248, 250, 252, 0.45) !important; /* Semi-transparent background so pebbles & splash show through! */
+      color: #0F172A;
+      position: relative;
+      z-index: 20;
+    }
+
+    /* Light Theme Pebble Cards */
+    .light-card {
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      border-radius: 24px;
+      box-shadow: 0 10px 30px rgba(13, 148, 136, 0.08);
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      backdrop-filter: blur(16px);
+    }
+
+    .light-card:hover {
+      transform: translateY(-6px);
+      border-color: #0D9488;
+      box-shadow: 0 20px 45px rgba(13, 148, 136, 0.2);
+    }
+
+    /* Highlight Banner Card in Light Theme */
+    .light-highlight-card {
+      background: linear-gradient(135deg, rgba(240, 253, 244, 0.92) 0%, rgba(230, 255, 250, 0.92) 100%);
+      border: 2px solid #0D9488;
+      border-radius: 28px;
+      box-shadow: 0 15px 35px rgba(13, 148, 136, 0.15);
+      backdrop-filter: blur(16px);
+    }
+
+    /* Badge Water Teal */
+    .badge-teal-light {
+      background: linear-gradient(135deg, #0D9488 0%, #059669 100%);
+      color: #FFFFFF;
+      font-weight: 900;
+    }
+
+    /* Sliding Pill Indicator for Motion Tabs */
+    .sliding-pill {
+      position: absolute;
+      top: 4px;
+      bottom: 4px;
+      border-radius: 9999px;
+      background: linear-gradient(135deg, #0D9488 0%, #059669 100%);
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 0;
+    }
+
+    /* Floating Keyframe Animation */
+    @keyframes floatBounce {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .animate-float {
+      animation: floatBounce 3s ease-in-out infinite;
+    }
+
+    /* Leaflet Map Styling */
+    #leaflet-map {
+      width: 100%;
+      height: 520px;
+      border-radius: 24px;
+      z-index: 1;
+    }
+  </style>
+</head>
+<body class="antialiased selection:bg-[#0D9488] selection:text-white">
+
+  <!-- Fullscreen Fixed Background Canvas (Underwater Bubbles + Riverbed Pebbles + Splash Ripples) -->
+  <canvas id="full-canvas"></canvas>
+
+  <!-- Sticky Navbar -->
+  <nav id="navbar" class="sticky top-0 z-50 bg-[#06181D]/80 backdrop-blur-2xl border-b border-teal-500/20 px-6 py-4 transition-all duration-500">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="w-9 h-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-black text-lg shadow-md animate-float">
+          <i class="fa-solid fa-water"></i>
+        </span>
+        <span id="nav-title" class="font-black text-xl tracking-tight text-white font-display">송추계곡 가이드</span>
+      </div>
+
+      <div id="nav-links" class="flex items-center gap-6 text-sm font-bold text-teal-100/90">
+        <a href="#route" class="hover:text-teal-300 transition-colors"><i class="fa-solid fa-route"></i> 1. 통합 루트</a>
+        <a href="#map" class="hover:text-teal-300 transition-colors"><i class="fa-solid fa-map-location-dot"></i> 2. 동선 지도</a>
+        <a href="#valley" class="hover:text-teal-300 transition-colors"><i class="fa-solid fa-mountain-sun"></i> 3. 송추계곡</a>
+        <a href="#restaurants" class="hover:text-teal-300 transition-colors"><i class="fa-solid fa-utensils"></i> 4. 맛집 (22)</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- SECTION 0: 100vh Full Screen Viewport (Smooth Fade Out Effect on Scroll) -->
+  <header id="section-0" class="section-hero-0 px-6 pt-10 pb-8 text-center">
+    <!-- Top Spacer for Navbar -->
+    <div></div>
+
+    <div class="max-w-5xl mx-auto space-y-6">
+      <div id="hero-badge" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#0D232A]/90 border border-teal-400/50 text-teal-300 text-xs sm:text-sm font-mono font-bold shadow-lg backdrop-blur-md opacity-0">
+        <span class="w-2.5 h-2.5 rounded-full bg-teal-400 animate-ping"></span>
+        <span>🫧 수중 뽀글뽀글 1급수 송추계곡 힐링 메인</span>
+      </div>
+
+      <h1 id="hero-title" class="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-white font-display leading-tight opacity-0 drop-shadow-md">
+        맑은 물소리와 숲길,<br />
+        <span class="bg-gradient-to-r from-teal-300 via-emerald-400 to-amber-300 bg-clip-text text-transparent">시원한 여름 송추계곡 여행.</span>
+      </h1>
+
+      <p id="hero-desc" class="max-w-2xl mx-auto text-base sm:text-xl text-teal-100/90 font-medium leading-relaxed opacity-0 drop-shadow">
+        푸르른 북한산 자락 송추계곡의 시원한 계곡물과 소나무 숲 산책, 12:30 점심 맛집, 4.5시간 계곡 힐링, 저녁 맛집, 19시 역순 귀가까지 시원하게 연결해 드립니다.
+      </p>
+
+      <!-- Bklit HUD Dynamic Counter Dashboard -->
+      <div id="hero-hud" class="grid grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl mx-auto pt-2 opacity-0">
+        <div class="bg-[#0D232A]/90 backdrop-blur-md border border-teal-500/40 p-5 rounded-2xl text-left space-y-1 shadow-xl">
+          <div class="text-xs font-mono font-bold text-teal-300/90 uppercase">Total Duration</div>
+          <div class="text-3xl font-black font-display text-white"><span class="counter-num" data-val="10">0</span>시간</div>
+          <div class="text-xs text-teal-300 font-bold">10:45 AM ~ 20:45 PM</div>
+        </div>
+
+        <div class="bg-[#0D232A]/90 backdrop-blur-md border border-teal-500/40 p-5 rounded-2xl text-left space-y-1 shadow-xl">
+          <div class="text-xs font-mono font-bold text-teal-300/90 uppercase">Distance</div>
+          <div class="text-3xl font-black font-display text-teal-300">124~136km</div>
+          <div class="text-xs text-teal-100/70">차량 옵션별 왕복 거리</div>
+        </div>
+
+        <div class="bg-[#0D232A]/90 backdrop-blur-md border border-teal-500/40 p-5 rounded-2xl text-left space-y-1 shadow-xl">
+          <div class="text-xs font-mono font-bold text-teal-300/90 uppercase">Valley Rest</div>
+          <div class="text-3xl font-black font-display text-cyan-300">4.5시간</div>
+          <div class="text-xs text-teal-100/70">13:30 ~ 18:00 PM 휴식</div>
+        </div>
+
+        <div class="bg-[#0D232A]/90 backdrop-blur-md border border-teal-500/40 p-5 rounded-2xl text-left space-y-1 shadow-xl">
+          <div class="text-xs font-mono font-bold text-teal-300/90 uppercase">Restaurants</div>
+          <div class="text-3xl font-black font-display text-amber-400"><span class="counter-num" data-val="22">0</span>곳</div>
+          <div class="text-xs text-teal-100/70">네이버 지도 연동 후보</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Scroll Indicator Arrow -->
+    <div class="pb-6">
+      <a href="#route" class="inline-flex flex-col items-center gap-1.5 text-teal-300 hover:text-white transition-colors group">
+        <span class="text-xs font-mono font-bold tracking-widest uppercase">Scroll Down to Section 1</span>
+        <i class="fa-solid fa-chevron-down text-xl animate-bounce group-hover:scale-125 transition-transform"></i>
+      </a>
+    </div>
+  </header>
+
+  <!-- SECTION 1 & BELOW: Semi-Transparent Pebble & Splash Stream Canvas Container -->
+  <div class="section-light">
+    
+    <main class="max-w-7xl mx-auto px-6 py-16 space-y-32">
+
+      <!-- SECTION 1: Route Selector -->
+      <section id="route" class="space-y-8 pt-4">
+        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-6 border-b border-slate-200 pb-6">
+          <div>
+            <span class="text-[#0D9488] text-xs font-mono font-bold tracking-widest uppercase flex items-center gap-1.5">
+              <i class="fa-solid fa-route"></i> SECTION 1: Route Options
+            </span>
+            <h2 class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight mt-1 font-display">1. 차량별 10단계 통합 연속 이동 루트</h2>
+          </div>
+
+          <!-- Motion Sliding Tab Switcher -->
+          <div class="relative inline-flex p-1.5 rounded-full bg-white/80 border border-slate-200 shadow-inner backdrop-blur-md">
+            <div id="tab-pill" class="sliding-pill w-1/2 left-1.5"></div>
+            <button onclick="switchVehicle('opt1', this)" class="relative z-10 px-6 py-2.5 rounded-full font-black text-sm text-white transition-colors duration-300">
+              🚘 선택지 1: 더 뉴 EV6
+            </button>
+            <button onclick="switchVehicle('opt2', this)" class="relative z-10 px-6 py-2.5 rounded-full font-black text-sm text-slate-600 hover:text-slate-900 transition-colors duration-300">
+              🚘 선택지 2: EGV70
+            </button>
+          </div>
+        </div>
+
+        <!-- Route Cards Comparison -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          
+          <!-- Option 1 Card: EV6 -->
+          <div id="card-opt1" class="light-highlight-card p-8 space-y-6">
+            <div class="flex items-center justify-between">
+              <span class="px-4 py-1.5 rounded-full badge-teal-light text-xs font-mono shadow-md">선택지 1: 더 뉴 EV6 롱레인지 (운전자: 우철)</span>
+              <span class="text-xs font-mono font-bold text-slate-600"><i class="fa-solid fa-road mr-1"></i> 약 136km</span>
+            </div>
+
+            <!-- Vehicle Image Container (A4 Ratio) -->
+            <div class="w-full aspect-[1.414/1] rounded-2xl bg-white border border-slate-200 flex items-center justify-center p-3 overflow-hidden shadow-inner">
+              <img src="C:/Users/kmk05/.gemini/antigravity/brain/bb229004-e305-4f2f-98e4-b9ceddc183c2/.user_uploaded/media_1787827127318.png" alt="더 뉴 EV6 롱레인지" class="w-full h-full object-contain">
+            </div>
+
+            <!-- 10 Timeline Steps -->
+            <div class="space-y-3 text-sm font-sans">
+              <div class="step-card flex items-center justify-between p-3.5 rounded-2xl bg-white/90 border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-3">
+                  <span class="px-3 py-1 rounded-full badge-teal-light font-mono text-xs">10:45 AM</span>
+                  <div>
+                    <div class="font-extrabold text-slate-900">1. 강서구 출발 (우철)</div>
+                    <div class="text-xs text-slate-500">EV6 출발 ➔ 남부순환/강남순환고속 이동</div>
+                  </div>
+                </div>
+                <span class="font-mono text-xs font-bold text-teal-800 bg-teal-50 px-3 py-1 rounded-full border border-teal-200">⏰ 30분</span>
+              </div>
+
+              <div class="step-card flex items-center justify-between p-3.5 rounded-2xl bg-white/90 border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-3">
+                  <span class="px-3 py-1 rounded-full badge-teal-light font-mono text-xs">11:15 AM</span>
+                  <div>
+                    <div class="font-extrabold text-slate-900">2. 신림역 픽업 (상헌 & 지원)</div>
+                    <div class="text-xs text-slate-500">과천시청에서 지하철 이동 지원 & 상헌 동시 탑승</div>
+                  </div>
+                </div>
+                <span class="font-mono text-xs font-bold text-teal-800 bg-teal-50 px-3 py-1 rounded-full border border-teal-200">⏰ 20분</span>
+              </div>
+
+              <div class="step-card flex items-center justify-between p-3.5 rounded-2xl bg-white/90 border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-3">
+                  <span class="px-3 py-1 rounded-full badge-teal-light font-mono text-xs">11:35 AM</span>
+                  <div>
+                    <div class="font-extrabold text-slate-900">3. 서초리슈빌S글로벌 픽업 (민국)</div>
+                    <div class="text-xs text-slate-500">내곡동 민국 탑승 ➔ 수도권제1순환 진입</div>
+                  </div>
+                </div>
+                <span class="font-mono text-xs font-bold text-teal-800 bg-teal-50 px-3 py-1 rounded-full border border-teal-200">⏰ 55분</span>
+              </div>
+
+              <!-- Lunch Tentative -->
+              <div class="step-card flex items-center justify-between p-3.5 rounded-2xl bg-amber-50/90 border-2 border-dashed border-amber-400">
+                <div class="flex items-center gap-3">
+                  <span class="px-3 py-1 rounded-full bg-amber-400 text-black font-mono font-black text-xs">12:30 PM</span>
+                  <div>
+                    <div class="font-black text-amber-950">4. 점심 식사 (12:30 PM 도착 / 만포면옥 임시후보)</div>
+                    <div class="text-xs text-amber-800">송추계곡 입구 맛집 1시간 점심 (임시 식당)</div>
+                  </div>
+                </div>
+                <span class="font-mono text-xs font-bold text-amber-900 bg-amber-200 px-3 py-1 rounded-full border border-amber-300">🍚 1시간 점심</span>
+              </div>
+
+              <!-- Songchu Valley Main -->
+              <div class="step-card flex items-center justify-between p-3.5 rounded-2xl bg-emerald-50/90 border-2 border-emerald-500 shadow-md">
+                <div class="flex items-center gap-3">
+                  <span class="px-3 py-1 rounded-full bg-emerald-500 text-white font-mono font-black text-xs">13:30 - 18:00 PM</span>
+                  <div>
+                    <div class="font-black text-emerald-950">5. 🌲 송추계곡 본류 물놀이 & 힐링 휴식 (4.5시간)</div>
+                    <div class="text-xs text-emerald-800">송추계곡 본류 물놀이, 둘레길 산책, 돗자리/평상 휴식</div>
+                  </div>
+                </div>
+                <span class="font-mono text-xs font-bold text-emerald-900 bg-emerald-200 px-3 py-1 rounded-full border border-emerald-300">🌊 4.5h 휴식</span>
+              </div>
+
+              <!-- Dinner Tentative -->
+              <div class="step-card flex items-center justify-between p-3.5 rounded-2xl bg-amber-50/90 border-2 border-dashed border-amber-400">
+                <div class="flex items-center gap-3">
+                  <span class="px-3 py-1 rounded-full bg-amber-400 text-black font-mono font-black text-xs">18:00 PM</span>
+                  <div>
+                    <div class="font-black text-amber-950">6. 저녁 식사 (18:00 PM 기준 / 송추밤나무 임시후보)</div>
+                    <div class="text-xs text-amber-800">송추계곡 백숙/소갈비 식당 저녁 (임시 식당)</div>
+                  </div>
+                </div>
+                <span class="font-mono text-xs font-bold text-amber-900 bg-amber-200 px-3 py-1 rounded-full border border-amber-300">🍖 1시간 저녁</span>
+              </div>
+
+              <div class="step-card flex items-center justify-between p-3.5 rounded-2xl bg-white/90 border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-3">
+                  <span class="px-3 py-1 rounded-full bg-sky-500 text-white font-mono font-black text-xs">19:00 PM</span>
+                  <div>
+                    <div class="font-extrabold text-slate-900">7. 송추계곡 귀가 출발 (19시 출발)</div>
+                    <div class="text-xs text-slate-500">19시 귀가 출발 (수도권제1순환고속)</div>
+                  </div>
+                </div>
+                <span class="font-mono text-xs font-bold text-sky-800 bg-sky-50 px-3 py-1 rounded-full border border-sky-200">⏰ 55분</span>
+              </div>
+
+              <div class="step-card flex items-center justify-between p-3.5 rounded-2xl bg-white/90 border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-3">
+                  <span class="px-3 py-1 rounded-full bg-slate-200 text-slate-800 font-mono font-black text-xs">19:55 PM</span>
+                  <div>
+                    <div class="font-extrabold text-slate-900">8. 서초리슈빌S글로벌 드롭 (민국)</div>
+                    <div class="text-xs text-slate-500">내곡동 민국 자택 하차 (1차 드롭)</div>
+                  </div>
+                </div>
+                <span class="font-mono text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-full">⏰ 20분</span>
+              </div>
+
+              <div class="step-card flex items-center justify-between p-3.5 rounded-2xl bg-white/90 border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-3">
+                  <span class="px-3 py-1 rounded-full bg-slate-200 text-slate-800 font-mono font-black text-xs">20:15 PM</span>
+                  <div>
+                    <div class="font-extrabold text-slate-900">9. 신림역/서울대입구 드롭 (상헌&지원)</div>
+                    <div class="text-xs text-slate-500">상헌 & 지원 하차 (2차 드롭)</div>
+                  </div>
+                </div>
+                <span class="font-mono text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-full">⏰ 30분</span>
+              </div>
+
+              <div class="step-card flex items-center justify-between p-3.5 rounded-2xl bg-emerald-100/90 border border-emerald-300 shadow-sm">
+                <div class="flex items-center gap-3">
+                  <span class="px-3 py-1 rounded-full bg-emerald-600 text-white font-mono font-black text-xs">20:45 PM</span>
+                  <div>
+                    <div class="font-black text-emerald-950">10. 강서구 귀가 완료 (우철)</div>
+                    <div class="text-xs text-emerald-800">우철 자택 최종 도착 완료</div>
+                  </div>
+                </div>
+                <span class="font-mono text-xs font-bold text-emerald-900 bg-emerald-200 px-3 py-1 rounded-full border border-emerald-300">🏁 최종 도착</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Option 2 Card: EGV70 -->
+          <div id="card-opt2" class="light-card p-8 space-y-6 opacity-40 transition-all duration-500">
+            <div class="flex items-center justify-between">
+              <span class="px-4 py-1.5 rounded-full bg-purple-100 text-purple-800 font-mono text-xs border border-purple-200">선택지 2: EGV70 (운전자: 민국)</span>
+              <span class="text-xs font-mono font-bold text-slate-600"><i class="fa-solid fa-road mr-1"></i> 약 124km</span>
+            </div>
+
+            <!-- Vehicle Image Container (A4 Ratio) -->
+            <div class="w-full aspect-[1.414/1] rounded-2xl bg-white border border-slate-200 flex items-center justify-center p-3 overflow-hidden shadow-inner">
+              <img src="C:/Users/kmk05/.gemini/antigravity/brain/bb229004-e305-4f2f-98e4-b9ceddc183c2/.user_uploaded/media_1787827225986.png" alt="EGV70" class="w-full h-full object-contain">
+            </div>
+
+            <!-- 10 Timeline Steps -->
+            <div class="space-y-3 text-sm font-sans">
+              <div class="flex items-center justify-between p-3.5 rounded-2xl bg-white/90 border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-3">
+                  <span class="px-3 py-1 rounded-full bg-purple-600 text-white font-mono font-bold text-xs">10:35 AM</span>
+                  <div>
+                    <div class="font-extrabold text-slate-900">1. 서초리슈빌S글로벌 출발 (민국)</div>
+                    <div class="text-xs text-slate-500">EGV70 출발 ➔ 강남순환터널 이동</div>
+                  </div>
+                </div>
+                <span class="font-mono text-xs font-bold text-purple-700 bg-purple-50 px-3 py-1 rounded-full">⏰ 25분</span>
+              </div>
+
+              <div class="flex items-center justify-between p-3.5 rounded-2xl bg-white/90 border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-3">
+                  <span class="px-3 py-1 rounded-full bg-purple-600 text-white font-mono font-bold text-xs">11:00 AM</span>
+                  <div>
+                    <div class="font-extrabold text-slate-900">2. 신림역 픽업 (상헌 & 지원)</div>
+                    <div class="text-xs text-slate-500">상헌 & 지원 탑승 (5분 정차)</div>
+                  </div>
+                </div>
+                <span class="font-mono text-xs font-bold text-purple-700 bg-purple-50 px-3 py-1 rounded-full">⏰ 40분</span>
+              </div>
+
+              <div class="flex items-center justify-between p-3.5 rounded-2xl bg-white/90 border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-3">
+                  <span class="px-3 py-1 rounded-full bg-purple-600 text-white font-mono font-bold text-xs">11:40 AM</span>
+                  <div>
+                    <div class="font-extrabold text-slate-900">3. 강서구 픽업 (우철)</div>
+                    <div class="text-xs text-slate-500">우철 탑승 ➔ 올림픽대로 이동</div>
+                  </div>
+                </div>
+                <span class="font-mono text-xs font-bold text-purple-700 bg-purple-50 px-3 py-1 rounded-full">⏰ 50분</span>
+              </div>
+
+              <!-- Lunch Tentative -->
+              <div class="flex items-center justify-between p-3.5 rounded-2xl bg-amber-50/90 border-2 border-dashed border-amber-400">
+                <div class="flex items-center gap-3">
+                  <span class="px-3 py-1 rounded-full bg-amber-400 text-black font-mono font-black text-xs">12:30 PM</span>
+                  <div>
+                    <div class="font-black text-amber-950">4. 점심 식사 (12:30 PM 도착 / 만포면옥 임시후보)</div>
+                    <div class="text-xs text-amber-800">송추계곡 입구 점심 (임시 식당)</div>
+                  </div>
+                </div>
+                <span class="font-mono text-xs font-bold text-amber-900 bg-amber-200 px-3 py-1 rounded-full">🍚 1시간 점심</span>
+              </div>
+
+              <!-- Songchu Valley Main -->
+              <div class="flex items-center justify-between p-3.5 rounded-2xl bg-emerald-50/90 border-2 border-emerald-500">
+                <div class="flex items-center gap-3">
+                  <span class="px-3 py-1 rounded-full bg-emerald-500 text-white font-mono font-black text-xs">13:30 - 18:00 PM</span>
+                  <div>
+                    <div class="font-black text-emerald-950">5. 🌲 송추계곡 본류 물놀이 & 힐링 휴식 (4.5시간)</div>
+                    <div class="text-xs text-emerald-800">송추계곡 본류 물놀이, 둘레길 산책, 돗자리/평상 휴식</div>
+                  </div>
+                </div>
+                <span class="font-mono text-xs font-bold text-emerald-900 bg-emerald-200 px-3 py-1 rounded-full">🌊 4.5h 휴식</span>
+              </div>
+
+              <!-- Dinner Tentative -->
+              <div class="flex items-center justify-between p-3.5 rounded-2xl bg-amber-50/90 border-2 border-dashed border-amber-400">
+                <div class="flex items-center gap-3">
+                  <span class="px-3 py-1 rounded-full bg-amber-400 text-black font-mono font-black text-xs">18:00 PM</span>
+                  <div>
+                    <div class="font-black text-amber-950">6. 저녁 식사 (18:00 PM 기준 / 송추밤나무 임시후보)</div>
+                    <div class="text-xs text-amber-800">송추계곡 백숙 저녁 (임시 식당)</div>
+                  </div>
+                </div>
+                <span class="font-mono text-xs font-bold text-amber-900 bg-amber-200 px-3 py-1 rounded-full">🍖 1시간 저녁</span>
+              </div>
+
+              <div class="flex items-center justify-between p-3.5 rounded-2xl bg-white/90 border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-3">
+                  <span class="px-3 py-1 rounded-full bg-purple-600 text-white font-mono font-bold text-xs">19:00 PM</span>
+                  <div>
+                    <div class="font-extrabold text-slate-900">7. 송추계곡 귀가 출발 (19시 출발)</div>
+                    <div class="text-xs text-slate-500">19시 귀가 출발 (김포대교/올림픽대로)</div>
+                  </div>
+                </div>
+                <span class="font-mono text-xs font-bold text-purple-700 bg-purple-50 px-3 py-1 rounded-full">⏰ 45분</span>
+              </div>
+
+              <div class="flex items-center justify-between p-3.5 rounded-2xl bg-white/90 border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-3">
+                  <span class="px-3 py-1 rounded-full bg-slate-200 text-slate-800 font-mono font-black text-xs">19:45 PM</span>
+                  <div>
+                    <div class="font-extrabold text-slate-900">8. 강서구 드롭 (우철)</div>
+                    <div class="text-xs text-slate-500">우철 마곡 하차 (1차 드롭)</div>
+                  </div>
+                </div>
+                <span class="font-mono text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-full">⏰ 30분</span>
+              </div>
+
+              <div class="flex items-center justify-between p-3.5 rounded-2xl bg-white/90 border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-3">
+                  <span class="px-3 py-1 rounded-full bg-slate-200 text-slate-800 font-mono font-black text-xs">20:15 PM</span>
+                  <div>
+                    <div class="font-extrabold text-slate-900">9. 신림역 드롭 (상헌&지원)</div>
+                    <div class="text-xs text-slate-500">상헌 & 지원 하차 (2차 드롭)</div>
+                  </div>
+                </div>
+                <span class="font-mono text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-full">⏰ 20분</span>
+              </div>
+
+              <div class="flex items-center justify-between p-3.5 rounded-2xl bg-purple-100/90 border border-purple-300">
+                <div class="flex items-center gap-3">
+                  <span class="px-3 py-1 rounded-full bg-purple-600 text-white font-mono font-bold text-xs">20:35 PM</span>
+                  <div>
+                    <div class="font-black text-purple-950">10. 서초리슈빌S글로벌 귀가 완료 (민국)</div>
+                    <div class="text-xs text-purple-800">민국 서초 자택 도착</div>
+                  </div>
+                </div>
+                <span class="font-mono text-xs font-bold text-purple-900 bg-purple-200 px-3 py-1 rounded-full">🏁 최종 도착</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- SECTION 2: Leaflet Map -->
+      <section id="map" class="space-y-6">
+        <div class="border-b border-slate-200 pb-4 flex items-center justify-between">
+          <div>
+            <span class="text-[#0D9488] text-xs font-mono font-bold tracking-widest uppercase flex items-center gap-1.5">
+              <i class="fa-solid fa-map"></i> SECTION 2: GIS Dynamic Map
+            </span>
+            <h2 class="text-3xl font-black text-slate-900 tracking-tight mt-1 font-display">2. 인터랙티브 동선 지도</h2>
+          </div>
+          <button onclick="resetMap()" class="px-4 py-2 rounded-full bg-white/90 border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all shadow-sm">
+            <i class="fa-solid fa-arrows-to-dot"></i> 전체 경로 확대
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="lg:col-span-2 light-card p-4">
+            <div id="leaflet-map"></div>
+          </div>
+
+          <div class="light-card p-6 space-y-4 max-h-[550px] overflow-y-auto">
+            <div class="font-bold text-base text-slate-900 border-b border-slate-200 pb-3 flex items-center justify-between font-display">
+              <span>스텝별 핀 탐색기</span>
+              <span class="text-xs font-mono font-bold text-[#0D9488]">10 Nodes</span>
+            </div>
+            <div id="sidebar-step-list" class="space-y-2"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 3: Songchu Valley Overview -->
+      <section id="valley" class="space-y-6">
+        <div class="border-b border-slate-200 pb-4">
+          <span class="text-[#0D9488] text-xs font-mono font-bold tracking-widest uppercase flex items-center gap-1.5">
+            <i class="fa-solid fa-water"></i> SECTION 3: Destination
+          </span>
+          <h2 class="text-3xl font-black text-slate-900 tracking-tight mt-1 font-display">3. 송추계곡 안내</h2>
+        </div>
+
+        <div class="light-card overflow-hidden grid grid-cols-1 lg:grid-cols-2">
+          <div class="relative min-h-[320px]">
+            <img src="images/songchu_valley.jpg" alt="송추계곡 네이버 공식 포토" class="w-full h-full object-cover">
+            <div class="absolute top-4 left-4 badge-teal-light text-xs font-extrabold px-3.5 py-1.5 rounded-full shadow-md font-mono">
+              📍 네이버 지도 공식 1호 포토 (G9r23LFN)
+            </div>
+          </div>
+
+          <div class="p-8 flex flex-col justify-between space-y-6">
+            <div class="space-y-4">
+              <h3 class="text-3xl font-black text-slate-900 font-display">송추계곡 (양주시 장흥면 울대리)</h3>
+              <div class="text-[#0D9488] text-sm font-bold flex items-center gap-2">
+                <i class="fa-solid fa-location-dot"></i>
+                <span>경기 양주시 장흥면 울대리 (북한산 국립공원 송추지구)</span>
+              </div>
+              <p class="text-slate-600 text-sm leading-relaxed">
+                북한산 국립공원 내에 위치한 수도권 대표 청정 계곡입니다. 맑고 깨끗한 계곡물과 울창한 밤나무/소나무 숲 산책로가 우수하며, 계곡 상류 물놀이 구역과 송추가마골/만포면옥 등 맛집거리가 조성되어 있습니다.
+              </p>
+            </div>
+
+            <div class="flex flex-wrap gap-4 pt-4 border-t border-slate-200">
+              <button onclick="focusMap(37.7118762, 126.98545, '송추계곡')" class="px-6 py-3 rounded-full badge-teal-light text-sm hover:opacity-90 transition-all shadow-lg shadow-teal-600/20">
+                <i class="fa-solid fa-crosshairs"></i> 지도에서 위치 확인
+              </button>
+              <a href="https://naver.me/G9r23LFN" target="_blank" class="px-6 py-3 rounded-full bg-white/90 text-slate-800 font-bold text-sm border border-slate-200 hover:bg-slate-100 transition-all">
+                <i class="fa-solid fa-map-pin text-[#0D9488]"></i> 네이버 길찾기 (G9r23LFN)
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 4: 22 Restaurants Directory -->
+      <section id="restaurants" class="space-y-8">
+        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-6 border-b border-slate-200 pb-6">
+          <div>
+            <span class="text-amber-600 text-xs font-mono font-bold tracking-widest uppercase flex items-center gap-1.5">
+              <i class="fa-solid fa-utensils"></i> SECTION 4: Gourmet Directory
+            </span>
+            <h2 class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight mt-1 font-display">4. 송추계곡 추천 맛집 (22곳)</h2>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="filterCat('all', this)" class="cat-btn px-4 py-2 rounded-full badge-teal-light text-xs shadow-sm">전체 (22)</button>
+            <button onclick="filterCat('ribs', this)" class="cat-btn px-4 py-2 rounded-full bg-white/90 text-slate-600 hover:text-slate-900 font-bold text-xs border border-slate-200 shadow-sm">🍖 소갈비/BBQ (5)</button>
+            <button onclick="filterCat('korean', this)" class="cat-btn px-4 py-2 rounded-full bg-white/90 text-slate-600 hover:text-slate-900 font-bold text-xs border border-slate-200 shadow-sm">🍚 정통한식/냉면 (5)</button>
+            <button onclick="filterCat('baeksuk', this)" class="cat-btn px-4 py-2 rounded-full bg-white/90 text-slate-600 hover:text-slate-900 font-bold text-xs border border-slate-200 shadow-sm">🐓 계곡백숙/평상 (8)</button>
+            <button onclick="filterCat('cafe', this)" class="cat-btn px-4 py-2 rounded-full bg-white/90 text-slate-600 hover:text-slate-900 font-bold text-xs border border-slate-200 shadow-sm">☕ 이탈리안/카페 (4)</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" id="restaurants-container">
+          <!-- Dynamically rendered via JS -->
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="border-t border-slate-200/80 bg-white/80 backdrop-blur-md py-12 text-center text-xs text-slate-500 space-y-2">
+      <div>🌲 2026 송추계곡 여행 계획 | Ultra Fade & Pebble Water Splash Stream Edition</div>
+      <div>네이버 지도 API 공식 DB & WGS84 정밀 GPS 연동 완료</div>
+    </footer>
+  </div>
+
+  <script>
+    const restaurantsData = [
+      { id: 'food-1', category: 'ribs', name: '송추가마골 본관', lat: 37.7175237, lng: 126.9722688, dist: '📍 송추계곡 입구 1분', desc: '40년 전통의 송추 대표 소갈비 & 갈비탕 맛집. 깔끔하고 쾌적한 룸과 대형 주차장 완비.', menu: '가마골갈비, 송추갈비, 왕갈비탕', imgUrl: 'images/food-1.jpg', naverUrl: 'https://map.naver.com/p/entry/place/13176218' },
+      { id: 'food-2', category: 'ribs', name: '송추가마골 신관', lat: 37.7181233, lng: 126.9716251, dist: '📍 송추가마골본관 옆 1분', desc: '프리미엄 숯불갈비와 고급 와인 다이닝을 함께 즐기는 모던 레스토랑.', menu: '한우 명품갈비, 갈비 정식', imgUrl: 'images/food-2.jpg', naverUrl: 'https://map.naver.com/p/entry/place/12012591' },
+      { id: 'food-3', category: 'ribs', name: '강경불고기 송추점', lat: 37.7185956, lng: 126.976711, dist: '📍 호국로 도로변 차로 2분', desc: '진한 숯불 향이 가득한 옛날 불고기와 신선한 쌈채소 무한 리필 전문점.', menu: '강경 숯불 불고기, 옛날 소불고기', imgUrl: 'images/food-3.jpg', naverUrl: 'https://map.naver.com/p/entry/place/1667049288' },
+      { id: 'food-4', category: 'ribs', name: '북한산숯불고기 본점', lat: 37.6809847, lng: 126.9597593, dist: '📍 북한산로 차로 4분', desc: '석쇠에 직접 구워 불향이 매력적인 숯불고기와 구수한 청국장이 일품인 한식당.', menu: '숯불고기 정식, 청국장', imgUrl: 'images/food-4.jpg', naverUrl: 'https://map.naver.com/p/entry/place/1202378706' },
+      { id: 'food-5', category: 'ribs', name: '데니스스모크하우스', lat: 37.7122597, lng: 126.9713608, dist: '📍 송추계곡입구 차로 3분', desc: '참나무 장작으로 12시간 이상 정성스럽게 훈제한 텍사스 스타일 바베큐 플래터.', menu: '데니스 바베큐 플래터, 텍사스 브리스킷', imgUrl: 'images/food-5.jpg', naverUrl: 'https://map.naver.com/p/entry/place/1462785059' },
+      { id: 'food-6', category: 'korean', name: '만포면옥 본점', lat: 37.7170742, lng: 126.9716057, dist: '📍 송추가마골 맞은편 1분', desc: '40년 역사를 자랑하는 정통 평양냉면과 고소한 녹두지짐 전문점.', menu: '평양물냉면, 비빔냉면, 녹두전', imgUrl: 'images/food-6.jpg', naverUrl: 'https://map.naver.com/p/entry/place/12917600' },
+      { id: 'food-7', category: 'korean', name: '진흥관', lat: 37.718312, lng: 126.9751126, dist: '📍 송추역 삼거리 차로 1분', desc: '50년 전통을 이어온 송추 대표 중화요리 노포 맛집. 얼큰한 해물 짬뽕.', menu: '진흥관 해물짬뽕, 바삭 탕수육', imgUrl: 'images/food-7.jpg', naverUrl: 'https://map.naver.com/p/entry/place/37297807' },
+      { id: 'food-8', category: 'korean', name: '송추도토리', lat: 37.7266992, lng: 126.9917253, dist: '📍 송추계곡 입구 도보 2분', desc: '도토리로 만드는 신선하고 정갈한 웰빙 퓨전 한식 맛집.', menu: '도토리 묵무침, 도토리전, 수제비', imgUrl: 'images/food-8.jpg', naverUrl: 'https://map.naver.com/p/entry/place/12074787' },
+      { id: 'food-9', category: 'korean', name: '송추국수', lat: 37.7140499, lng: 126.9812894, dist: '📍 송추계곡 길목 도보 3분', desc: '진하게 우려낸 멸치 육수의 뜨끈한 잔치국수와 매콤새콤 비빔국수.', menu: '잔치국수, 비빔국수, 왕만두', imgUrl: 'images/food-9.jpg', naverUrl: 'https://map.naver.com/p/entry/place/2091414285' },
+      { id: 'food-10', category: 'korean', name: '송추미가', lat: 37.7124944, lng: 126.9823245, dist: '📍 송추계곡 산책로 입구', desc: '구수한 시골 청국장과 정갈한 산채 나물 반찬이 어우러진 순수 한식당.', menu: '시골 청국장 정식, 산채 비빔밥', imgUrl: 'images/food-10.jpg', naverUrl: 'https://map.naver.com/p/entry/place/11879474' },
+      { id: 'food-11', category: 'baeksuk', name: '가마골백숙', lat: 37.7135963, lng: 126.9713075, dist: '📍 송추계곡입구 차로 2분', desc: '진한 능이버섯 육수의 토종닭 백숙과 오리 백숙 명가.', menu: '능이토종닭백숙, 오리백숙', imgUrl: 'images/food-11.jpg', naverUrl: 'https://map.naver.com/p/entry/place/34301375' },
+      { id: 'food-12', category: 'baeksuk', name: '송추밤나무', lat: 37.7153406, lng: 126.9805667, dist: '📍 송추계곡 안쪽 물소리 가', desc: '송추계곡 맑은 물소리를 들으며 즐기는 야외 평상 닭볶음탕 & 백숙.', menu: '한방토종닭백숙, 묵은지닭볶음탕', imgUrl: 'images/food-12.jpg', naverUrl: 'https://map.naver.com/p/entry/place/13103224' },
+      { id: 'food-13', category: 'baeksuk', name: '이집이좋겠네', lat: 37.735921, lng: 126.9508216, dist: '📍 장흥/송추계곡 평상 명소', desc: '계곡물 바로 옆 평상에서 발을 담그고 백숙과 파전에 막걸리를 즐기는 곳.', menu: '한방 닭백숙, 해물파전', imgUrl: 'images/food-13.jpg', naverUrl: 'https://map.naver.com/p/entry/place/37116820' },
+      { id: 'food-14', category: 'baeksuk', name: '장흥계곡 그래여기구나', lat: 37.7549505, lng: 126.9691412, dist: '📍 장흥계곡 상류 뷰 맛집', desc: '시원한 상류 계곡물 바로 옆에서 드넓은 야외 좌석과 능이백숙을 즐기는 곳.', menu: '능이버섯 닭백숙, 감자전', imgUrl: 'images/food-14.jpg', naverUrl: 'https://map.naver.com/p/entry/place/1862929532' },
+      { id: 'food-15', category: 'baeksuk', name: '장흥계곡 주막촌', lat: 37.7390121, lng: 126.9552014, dist: '📍 계곡물놀이 평상 식당', desc: '온 가족이 계곡 물놀이와 식사를 함께 즐길 수 있는 넓은 평상 주막촌.', menu: '토종 한방백숙, 파전', imgUrl: 'images/food-15.jpg', naverUrl: 'https://map.naver.com/p/entry/place/18108204' },
+      { id: 'food-16', category: 'baeksuk', name: '장흥계곡 솔내음', lat: 37.7500024, lng: 126.9452591, dist: '📍 숲속 울창한 계곡 가', desc: '울창한 소나무 숲과 맑은 계곡물이 어우러진 한방 오리백숙 전문점.', menu: '한방 오리백숙, 도토리묵', imgUrl: 'images/food-16.jpg', naverUrl: 'https://map.naver.com/p/entry/place/18108099' },
+      { id: 'food-17', category: 'baeksuk', name: '장흥 작은영토', lat: 37.7422506, lng: 126.9538001, dist: '📍 개별 프라이빗 방갈로', desc: '계곡 바로 옆에 독채 프라이빗 방갈로 시설을 갖추어 편안하게 식사하는 곳.', menu: '한방 닭백숙, 오리 훈제', imgUrl: 'images/food-17.jpg', naverUrl: 'https://map.naver.com/p/entry/place/11656446' },
+      { id: 'food-18', category: 'baeksuk', name: '송추계곡 글램핑 셀프 바베큐장', lat: 37.7151181, lng: 126.981216, dist: '📍 송추계곡 안쪽 글램핑장', desc: '계곡 바로 옆 글램핑 텐트에서 삼겹살과 소시지를 구워 먹는 셀프 바베큐장.', menu: '셀프 바베큐 텐트 이용', imgUrl: 'images/food-18.jpg', naverUrl: 'https://map.naver.com/p/entry/place/1664362409' },
+      { id: 'food-19', category: 'cafe', name: '올리앤 송추점', lat: 37.7128882, lng: 126.9716566, dist: '📍 북한산로 도로변 차로 2분', desc: '신선한 재료로 만드는 패밀리 이탈리안 레스토랑. 파스타, 피자, 스테이크.', menu: '까르보나라, 고르곤졸라 피자', imgUrl: 'images/food-19.jpg', naverUrl: 'https://map.naver.com/p/entry/place/1588399060' },
+      { id: 'food-20', category: 'cafe', name: '카페 헤세 (헤세의정원)', lat: 37.7159448, lng: 126.9803511, dist: '📍 송추계곡 정원 단지 내', desc: '북한산 자락 아름다운 수목원 정원에 위치한 힐링 디저트 카페.', menu: '핸드드립 커피, 수제 와플', imgUrl: 'images/food-20.jpg', naverUrl: 'https://map.naver.com/p/entry/place/32481137' },
+      { id: 'food-21', category: 'cafe', name: '오핀 베이커리', lat: 37.7185058, lng: 126.9720151, dist: '📍 송추가마골 신관 맞은편', desc: '넓은 3층 규모의 대형 힐링 베이커리 카페. 수제 갓 구운 빵과 루프탑 뷰.', menu: '오핀 시그니처 식빵, 소금빵', imgUrl: 'images/food-21.jpg', naverUrl: 'https://map.naver.com/p/entry/place/1297509395' },
+      { id: 'food-22', category: 'cafe', name: '오시에 (카페)', lat: 37.7204225, lng: 126.9800635, dist: '📍 송추역 앞 하얀건물', desc: '송추역 옛 역사 앞 화이트 톤의 분위기 있는 디저트 & 아늑한 감성 카페.', menu: '시그니처 라떼, 치즈 케이크', imgUrl: 'images/food-22.jpg', naverUrl: 'https://map.naver.com/p/entry/place/1057132273' }
+    ];
+
+    let currentOpt = 'opt1';
+    let map, markers = [], polylineLayer = null;
+    let fadeProgress = 0; // 0 (Section 0 Dark) ~ 1 (Section 1 White)
+
+    const route1Nodes = [
+      { name: '1. 강서구 출발 (우철)', lat: 37.5509, lng: 126.8495, time: '10:45 AM', desc: 'EV6 출발 ➔ 남부순환/강남순환고속' },
+      { name: '2. 신림역 픽업 (상헌&지원)', lat: 37.4842, lng: 126.9297, time: '11:15 AM', desc: '상헌 & 지원 탑승' },
+      { name: '3. 서초리슈빌S글로벌 픽업 (민국)', lat: 37.4589, lng: 127.0573, time: '11:35 AM', desc: '내곡동 민국 탑승' },
+      { name: '4. 점심 식사 (만포면옥 임시후보)', lat: 37.7170742, lng: 126.9716057, time: '12:30 PM', desc: '송추계곡 입구 맛집 1시간 점심', isTentative: true },
+      { name: '5. 🌲 송추계곡 본류 물놀이 & 힐링 (4.5h)', lat: 37.7118762, lng: 126.98545, time: '13:30 PM', desc: '송추계곡 본류 물놀이 & 산책 (메인)' },
+      { name: '6. 저녁 식사 (송추밤나무 백숙 임시후보)', lat: 37.7153406, lng: 126.9805667, time: '18:00 PM', desc: '송추계곡 백숙 저녁', isTentative: true },
+      { name: '7. 송추계곡 귀가 출발 (19시 출발)', lat: 37.7118762, lng: 126.98545, time: '19:00 PM', desc: '19시 귀가 출발' },
+      { name: '8. 서초리슈빌S글로벌 드롭 (민국)', lat: 37.4589, lng: 127.0573, time: '19:55 PM', desc: '내곡동 민국 하차' },
+      { name: '9. 신림역/서울대입구 드롭 (상헌&지원)', lat: 37.4842, lng: 126.9297, time: '20:15 PM', desc: '상헌 & 지원 하차' },
+      { name: '10. 강서구 귀가 완료 (우철)', lat: 37.5509, lng: 126.8495, time: '20:45 PM', desc: '우철 자택 도착' }
+    ];
+
+    const route2Nodes = [
+      { name: '1. 서초리슈빌S글로벌 출발 (민국)', lat: 37.4589, lng: 127.0573, time: '10:35 AM', desc: 'EGV70 출발 ➔ 강남순환터널' },
+      { name: '2. 신림역 픽업 (상헌&지원)', lat: 37.4842, lng: 126.9297, time: '11:00 AM', desc: '상헌 & 지원 탑승' },
+      { name: '3. 강서구 픽업 (우철)', lat: 37.5509, lng: 126.8495, time: '11:40 AM', desc: '우철 탑승' },
+      { name: '4. 점심 식사 (만포면옥 임시후보)', lat: 37.7170742, lng: 126.9716057, time: '12:30 PM', desc: '송추계곡 입구 점심', isTentative: true },
+      { name: '5. 🌲 송추계곡 본류 물놀이 & 힐링 (4.5h)', lat: 37.7118762, lng: 126.98545, time: '13:30 PM', desc: '송추계곡 본류 물놀이 & 산책 (메인)' },
+      { name: '6. 저녁 식사 (송추밤나무 백숙 임시후보)', lat: 37.7153406, lng: 126.9805667, time: '18:00 PM', desc: '송추계곡 백숙 저녁', isTentative: true },
+      { name: '7. 송추계곡 귀가 출발 (19시 출발)', lat: 37.7118762, lng: 126.98545, time: '19:00 PM', desc: '19시 귀가 출발' },
+      { name: '8. 강서구 드롭 (우철)', lat: 37.5509, lng: 126.8495, time: '19:45 PM', desc: '우철 마곡 하차' },
+      { name: '9. 신림역 드롭 (상헌&지원)', lat: 37.4842, lng: 126.9297, time: '20:15 PM', desc: '상헌 & 지원 하차' },
+      { name: '10. 서초리슈빌S글로벌 귀가 완료 (민국)', lat: 37.4589, lng: 127.0573, time: '20:35 PM', desc: '민국 서초 자택 도착' }
+    ];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initCanvasEngine();
+      initMap();
+      renderRestaurants('all');
+      switchVehicle('opt1', document.querySelector('.sliding-pill').nextElementSibling);
+      initScrollThemeObserver();
+    });
+
+    // Master Canvas Engine: Section 0 Bubbles + Dynamic Background Color Fade + Section 1 Pebbles & Splash Water
+    function initCanvasEngine() {
+      const canvas = document.getElementById('full-canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      window.addEventListener('resize', () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      });
+
+      // 1. Rising Water Bubbles (Section 0)
+      const bubbles = [];
+      for (let i = 0; i < 75; i++) {
+        bubbles.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          vy: Math.random() * 1.6 + 0.6,
+          swing: Math.random() * 0.04 + 0.01,
+          swingPhase: Math.random() * Math.PI * 2,
+          radius: Math.random() * 5 + 2,
+          alpha: Math.random() * 0.55 + 0.35
+        });
+      }
+
+      // 2. Riverbed Pebbles (Section 1 Background Stones)
+      const pebbles = [];
+      const pebbleColors = [
+        'rgba(148, 163, 184, 0.45)', // Slate Stone
+        'rgba(203, 213, 225, 0.55)', // Light Riverbed Stone
+        'rgba(13, 148, 136, 0.35)',  // Teal Stream Pebble
+        'rgba(100, 116, 139, 0.4)'   // Dark Pebble
+      ];
+      for (let i = 0; i < 60; i++) {
+        pebbles.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          rx: Math.random() * 18 + 8,
+          ry: Math.random() * 12 + 6,
+          angle: Math.random() * Math.PI,
+          color: pebbleColors[Math.floor(Math.random() * pebbleColors.length)]
+        });
+      }
+
+      // 3. Valley Water Splash & Expanding Ripples (Section 1 Water Splash)
+      const ripples = [];
+      setInterval(() => {
+        if (fadeProgress > 0.05) {
+          ripples.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            radius: 5,
+            maxRadius: Math.random() * 40 + 25,
+            alpha: 0.7
+          });
+        }
+      }, 350);
+
+      function drawScene() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // A. Section 0: Rising Bubbles (Visible when fadeProgress < 1)
+        if (fadeProgress < 0.98) {
+          const bubbleOpacity = Math.max(0, 1 - fadeProgress * 1.2);
+          bubbles.forEach(b => {
+            b.swingPhase += b.swing;
+            const currentX = b.x + Math.sin(b.swingPhase) * 8;
+
+            ctx.beginPath();
+            ctx.arc(currentX, b.y, b.radius, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(45, 212, 191, ${b.alpha * bubbleOpacity})`;
+            ctx.fill();
+
+            // Highlight dot
+            ctx.beginPath();
+            ctx.arc(currentX - b.radius * 0.35, b.y - b.radius * 0.35, b.radius * 0.35, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(255, 255, 255, ${b.alpha * 0.9 * bubbleOpacity})`;
+            ctx.fill();
+
+            b.y -= b.vy;
+            if (b.y < -15) {
+              b.y = canvas.height + 15;
+              b.x = Math.random() * canvas.width;
+            }
+          });
+        }
+
+        // B. Section 1: Riverbed Pebbles & Water Splash Ripples (Visible when fadeProgress > 0)
+        if (fadeProgress > 0.05) {
+          const pebbleOpacity = fadeProgress;
+
+          // Render Pebbles directly on canvas
+          pebbles.forEach(p => {
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.angle);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, p.rx, p.ry, 0, 0, Math.PI * 2);
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = pebbleOpacity * 0.7;
+            ctx.fill();
+
+            // Subtle pebble shadow highlight border
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            ctx.restore();
+          });
+
+          // Render Expanding Water Splash Ripples
+          for (let i = ripples.length - 1; i >= 0; i--) {
+            const r = ripples[i];
+            ctx.beginPath();
+            ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(13, 148, 136, ${r.alpha * pebbleOpacity})`;
+            ctx.lineWidth = 2.2;
+            ctx.stroke();
+
+            // Inner splash ring
+            ctx.beginPath();
+            ctx.arc(r.x, r.y, r.radius * 0.5, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(45, 212, 191, ${r.alpha * 0.6 * pebbleOpacity})`;
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+
+            r.radius += 0.75;
+            r.alpha -= 0.009;
+
+            if (r.radius > r.maxRadius || r.alpha <= 0) {
+              ripples.splice(i, 1);
+            }
+          }
+        }
+
+        requestAnimationFrame(drawScene);
+      }
+      drawScene();
+
+      // Anime.js Entrance Timeline
+      const tl = anime.timeline({ easing: 'easeOutExpo' });
+      tl.add({ targets: '#hero-badge', translateY: [20, 0], opacity: [0, 1], duration: 800 })
+        .add({ targets: '#hero-title', translateY: [30, 0], opacity: [0, 1], duration: 1000 }, '-=600')
+        .add({ targets: '#hero-desc', translateY: [20, 0], opacity: [0, 1], duration: 800 }, '-=700')
+        .add({ targets: '#hero-hud', translateY: [30, 0], opacity: [0, 1], duration: 1000 }, '-=600');
+
+      // Counter Numbers
+      document.querySelectorAll('.counter-num').forEach(el => {
+        const targetVal = parseInt(el.getAttribute('data-val'));
+        anime({
+          targets: el,
+          innerHTML: [0, targetVal],
+          round: 1,
+          easing: 'easeInOutExpo',
+          duration: 2000
+        });
+      });
+    }
+
+    // Scroll Theme Observer: DYNAMICALLY INTERPOLATE BODY BACKGROUND COLOR & NAVBAR
+    function initScrollThemeObserver() {
+      const section0 = document.getElementById('section-0');
+      const navbar = document.getElementById('navbar');
+      const navTitle = document.getElementById('nav-title');
+      const navLinks = document.getElementById('nav-links');
+
+      window.addEventListener('scroll', () => {
+        const scrollY = window.scrollY;
+        const heroHeight = section0.offsetHeight;
+
+        // Calculate smooth fadeProgress from 0 to 1
+        fadeProgress = Math.min(1, Math.max(0, scrollY / (heroHeight * 0.7)));
+
+        // DYNAMICALLY BLEND BODY BACKGROUND COLOR: #06181D -> #F8FAFC
+        const r = Math.round(6 + (248 - 6) * fadeProgress);
+        const g = Math.round(24 + (250 - 24) * fadeProgress);
+        const b = Math.round(29 + (252 - 29) * fadeProgress);
+        document.body.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+
+        // Fade out Section 0 hero text container smoothly
+        section0.style.opacity = Math.max(0, 1 - (scrollY / (heroHeight * 0.55)));
+
+        if (fadeProgress > 0.45) {
+          navbar.className = "sticky top-0 z-50 bg-white/90 backdrop-blur-2xl border-b border-slate-200 px-6 py-4 transition-all duration-500 shadow-sm";
+          navTitle.className = "font-black text-xl tracking-tight text-slate-900 font-display";
+          navLinks.className = "flex items-center gap-6 text-sm font-bold text-slate-700";
+        } else {
+          navbar.className = "sticky top-0 z-50 bg-[#06181D]/80 backdrop-blur-2xl border-b border-teal-500/20 px-6 py-4 transition-all duration-500";
+          navTitle.className = "font-black text-xl tracking-tight text-white font-display";
+          navLinks.className = "flex items-center gap-6 text-sm font-bold text-teal-100/90";
+        }
+      });
+    }
+
+    function switchVehicle(opt, btn) {
+      currentOpt = opt;
+      const pill = document.getElementById('tab-pill');
+      const card1 = document.getElementById('card-opt1');
+      const card2 = document.getElementById('card-opt2');
+
+      if (btn) {
+        pill.style.left = btn.offsetLeft + 'px';
+        pill.style.width = btn.offsetWidth + 'px';
+      }
+
+      if (opt === 'opt1') {
+        card1.style.opacity = '1';
+        card2.style.opacity = '0.4';
+      } else {
+        card2.style.opacity = '1';
+        card1.style.opacity = '0.4';
+      }
+
+      anime({
+        targets: `#card-${opt} .step-card`,
+        translateY: [15, 0],
+        opacity: [0.3, 1],
+        delay: anime.stagger(60),
+        easing: 'easeOutQuad'
+      });
+
+      renderMapRoute();
+    }
+
+    function initMap() {
+      map = L.map('leaflet-map').setView([37.7118762, 126.98545], 12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+      }).addTo(map);
+    }
+
+    function renderMapRoute() {
+      if (!map) return;
+      const nodes = currentOpt === 'opt1' ? route1Nodes : route2Nodes;
+      const color = currentOpt === 'opt1' ? '#0D9488' : '#8b5cf6';
+
+      const sidebarContainer = document.getElementById('sidebar-step-list');
+      sidebarContainer.innerHTML = nodes.map((n, i) => `
+        <div onclick="focusMap(${n.lat}, ${n.lng}, '${n.name}')" class="p-3.5 rounded-xl bg-white/90 border ${n.isTentative ? 'border-amber-400 bg-amber-50/90' : 'border-slate-200'} cursor-pointer hover:border-[#0D9488] transition-all flex items-center justify-between shadow-sm">
+          <div class="flex items-center gap-3">
+            <div class="w-6 h-6 rounded-md ${n.isTentative ? 'bg-amber-400 text-slate-900' : 'badge-teal-light'} font-mono font-black text-xs flex items-center justify-center">${i + 1}</div>
+            <div>
+              <div class="font-bold text-slate-900 text-xs">${n.name}</div>
+              <div class="text-[11px] text-slate-500">${n.desc}</div>
+            </div>
+          </div>
+          <span class="text-[11px] font-mono text-[#0D9488] font-bold">${n.time}</span>
+        </div>
+      `).join('');
+
+      markers.forEach(m => map.removeLayer(m));
+      markers = [];
+      if (polylineLayer) map.removeLayer(polylineLayer);
+
+      const latlngs = [];
+      nodes.forEach(n => {
+        latlngs.push([n.lat, n.lng]);
+        const m = L.marker([n.lat, n.lng]).addTo(map).bindPopup(`<b>${n.name}</b><br>${n.desc}`);
+        markers.push(m);
+      });
+
+      polylineLayer = L.polyline(latlngs, { color: color, weight: 4, dashArray: '6, 8' }).addTo(map);
+      map.fitBounds(polylineLayer.getBounds().pad(0.1));
+    }
+
+    function focusMap(lat, lng, title) {
+      map.flyTo([lat, lng], 15, { animate: true });
+    }
+
+    function resetMap() {
+      if (polylineLayer) map.fitBounds(polylineLayer.getBounds().pad(0.1));
+    }
+
+    function renderRestaurants(cat) {
+      const container = document.getElementById('restaurants-container');
+      const filtered = cat === 'all' ? restaurantsData : restaurantsData.filter(r => r.category === cat);
+      container.innerHTML = filtered.map(r => `
+        <div class="light-card p-6 space-y-4 flex flex-col justify-between">
+          <div class="space-y-4">
+            <div class="relative h-48 rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
+              <img src="${r.imgUrl}" alt="${r.name}" class="w-full h-full object-cover">
+              <span class="absolute top-3 left-3 bg-white/95 text-slate-900 font-mono font-black text-xs px-3 py-1 rounded-full border border-slate-200 shadow-sm">${r.dist}</span>
+            </div>
+            <div>
+              <h4 class="font-black text-slate-900 text-xl mb-1 font-display">${r.name}</h4>
+              <p class="text-slate-600 text-xs leading-relaxed mb-3">${r.desc}</p>
+              <div class="p-3 rounded-lg bg-teal-50 text-teal-900 text-xs font-semibold border border-teal-200 font-mono">
+                🍴 대표메뉴: ${r.menu}
+              </div>
+            </div>
+          </div>
+          <a href="${r.naverUrl}" target="_blank" class="w-full py-3 rounded-full badge-teal-light hover:opacity-90 text-xs text-center transition-all flex items-center justify-center gap-2 shadow-md font-mono">
+            <i class="fa-solid fa-map-pin"></i> 네이버 지도 상세 보기
+          </a>
+        </div>
+      `).join('');
+
+      anime({
+        targets: '#restaurants-container .light-card',
+        translateY: [20, 0],
+        opacity: [0, 1],
+        delay: anime.stagger(40),
+        easing: 'easeOutQuad'
+      });
+    }
+
+    function filterCat(cat, btn) {
+      document.querySelectorAll('.cat-btn').forEach(b => {
+        b.className = "cat-btn px-4 py-2 rounded-full bg-white/90 text-slate-600 hover:text-slate-900 font-bold text-xs border border-slate-200 shadow-sm";
+      });
+      btn.className = "cat-btn px-4 py-2 rounded-full badge-teal-light text-xs shadow-sm";
+      renderRestaurants(cat);
+    }
+  </script>
+</body>
+</html>
